@@ -1,0 +1,13 @@
+10/22/2019 06:02:57  postgres is not open
+10/22/2019 06:06:08  postgres is not open
+10/22/2019 06:07:33  postgres is not open
+10/22/2019 06:15:51  postgres is not open
+10/22/2019 06:16:00  postgres is not open
+10/22/2019 06:16:16  postgres is not open
+10/22/2019 06:23:08  postgres is not open
+10/22/2019 06:23:20  postgres is not open
+10/22/2019 06:32:05  postgres is not open; connect_str was host=localhost port=5432 dbname=postgres user=postgres password=
+10/22/2019 06:33:57  postgres is not open; connect_str was host=localhost port=5432 dbname=postgres user=postgres password=
+10/22/2019 06:34:07  postgres is not open; connect_str was host=localhost port=5432 dbname=postgres user=postgres password=
+10/22/2019 06:36:40  orpheus is not open; connect_str was host=localhost port=5432 dbname=orpheus user=orpheus password=test
+10/22/2019 06:37:16  postgres is not open; connect_str was host=localhost port=5432 dbname=postgres user=postgres password=

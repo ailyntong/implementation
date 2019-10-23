@@ -1,1 +1,1 @@
-{"user": "", "passphrase": "", "database": ""}
+{"user": "postgres", "passphrase": "test", "database": "postgres"}

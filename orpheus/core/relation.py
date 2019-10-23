@@ -1,3 +1,5 @@
+import shutil
+
 class RelationNotExistError(Exception):
   def __init__(self, tablename):
       self.name = tablename
@@ -111,12 +113,18 @@ class RelationManager(object):
         self.conn.connect.commit()
 
     def checkout_file(self, attributes, ridlist, datatable, to_file, delimiters, header):
+        filename = to_file.split('/')[-1]
+        to_file = 'stage/' + filename
+        temp_file = '/tmp/' + filename
         # convert to a tmp_table first
         self.drop_table_force('tmp_table')
         self.checkout_table(attributes, ridlist, datatable, 'tmp_table', None)
         sql = "COPY %s (%s) TO '%s' DELIMITER '%s' CSV HEADER;" if header else "COPY %s (%s) TO '%s' DELIMITER '%s' CSV;"
-        sql = sql % ('tmp_table', ','.join(attributes), to_file, delimiters)
+        sql = sql % ('tmp_table', ','.join(attributes), temp_file, delimiters)
         self.conn.cursor.execute(sql)
+
+        self.conn.connect.commit()
+        shutil.copy(temp_file, to_file)
 
 
     # Select the records into a new table

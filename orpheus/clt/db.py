@@ -39,7 +39,7 @@ class DatabaseManager():
             self.connect = psycopg2.connect(self.connect_str)
             self.cursor = self.connect.cursor()
         except psycopg2.OperationalError as e:
-            logging.error('%s is not open' % (self.currentDB))
+            logging.error('%s is not open; connect_str was %s' % (self.currentDB, self.connect_str))
             # click.echo(e, file=sys.stderr)
             raise ConnectionError("Cannot connect to the database [%s] @ [%s]:[%s]. Check connection, username, password and database name." % (self.currentDB, self.config['host'], self.config['port']))
         return self
@@ -123,7 +123,6 @@ class DatabaseManager():
             # create indexTbl table
             self.cursor.execute("CREATE TABLE %s (vid int primary key, \
                                                   rlist integer[]);" % (const.PUBLIC_SCHEMA + dataset + const.INDEXTABLE_SUFFIX))
-
             # dump data into this dataset
             file_path = self.config['orpheus_home'] + inputfile
             if header:
@@ -134,6 +133,7 @@ class DatabaseManager():
 
             self.connect.commit()
         except Exception as e:
+            print e
             raise OperationError()
         return
 
@@ -198,7 +198,8 @@ class DatabaseManager():
         # Set one-time only connection to the database to create user
         try:
             server_config = cls.load_config()
-            conn_string = "host=" + server_config['host'] + " port=" + str(server_config['port']) + " dbname=" + db
+            # conn_string = "host=" + server_config['host'] + " port=" + str(server_config['port']) + " dbname=" + db
+            conn_string = "host=" + server_config['host'] + " port=" + str(server_config['port']) + " dbname=" + db + " user='postgres' password='test'"
             connect = psycopg2.connect(conn_string)
             cursor = connect.cursor()
             # passphrase = EncryptionTool.passphrase_hash(password)

@@ -37,8 +37,9 @@ class UserManager(object):
 				'user' : user
 		}
 		#if password:
-		passphrase = EncryptionTool.passphrase_hash(password)
-		user_obj['passphrase'] = passphrase
+		# passphrase = EncryptionTool.passphrase_hash(password)
+		# user_obj['passphrase'] = passphrase
+		user_obj['passphrase'] = password
 
 		user_directory = '/'.join([cls.user_path(),user])
 		makedirs(user_directory) # make the directory, need to check if have permission
@@ -75,7 +76,8 @@ class UserManager(object):
 	def verify_credential(cls, user, raw):
 		if cls.check_user_exist(user):
 			user_obj = cls.__get_user_config(user)
-			if user_obj['passphrase'] == EncryptionTool.passphrase_hash(raw):
+			# if user_obj['passphrase'] == EncryptionTool.passphrase_hash(raw):
+			if user_obj['passphrase'] == raw:
 				return True
 		raise InvalidCredentialError()
 		return False

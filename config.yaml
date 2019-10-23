@@ -3,7 +3,8 @@ host: localhost
 port: 5432
 
 # Orpheus Home dir
-orpheus_home: #Please specify the Orpheus home directory
+# orpheus_home: /var/lib/postgresql/11/main/base/13125 #Please specify the Orpheus home directory
+orpheus_home: /home/ailyn/Documents/git/implementation
 
 # Meta dir 
 # TODO: hide them under orpheus_home

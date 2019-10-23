@@ -1,1 +1,1 @@
-{"file_map": {}, "table_map": {}, "table_created_time": {}, "merged_tables": [], "delta": {}}
+{"file_map": {"/home/ailyn/Documents/git/implementation/checkout.csv": ["dataset1", ["1"]]}, "table_created_time": {}, "merged_tables": [], "table_map": {}, "delta": {}}
