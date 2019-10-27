@@ -113,8 +113,7 @@ class RelationManager(object):
         self.conn.connect.commit()
 
     def checkout_file(self, attributes, ridlist, datatable, to_file, delimiters, header):
-        to_file = to_file.split('/')[-1]
-        temp_file = '/tmp/' + to_file
+        temp_file = '/tmp/' + to_file.split('/')[-1]
         # convert to a tmp_table first
         self.drop_table_force('tmp_table')
         self.checkout_table(attributes, ridlist, datatable, 'tmp_table', None)

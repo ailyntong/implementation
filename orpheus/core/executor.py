@@ -102,7 +102,7 @@ class Executor(object):
             self.p.perror(str(e))
             raise Exception
             return
-        abs_path = self.config['orpheus_home'] + to_file if to_file and to_file[0] != '/' else to_file
+        abs_path = self.config['orpheus_home'] + self.config['orpheus_data'] + '/' + to_file if to_file and to_file[0] != '/' else to_file
         try:
             metadata = MetadataManager(self.config, self.request)
             meta_obj = metadata.load_meta()
