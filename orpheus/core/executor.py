@@ -15,6 +15,7 @@ from access import AccessManager
 from version import VersionManager
 from metadata import MetadataManager
 from user_control import UserManager
+from attribute import AttributeManager
 from orpheus_schema_parser import Parser as SimpleSchemaParser
 from helper import Print
 import orpheus_const as const
@@ -140,6 +141,7 @@ class Executor(object):
             relation = RelationManager(conn)
             metadata = MetadataManager(self.config, self.request)
             version = VersionManager(conn, self.request)
+            attribute = AttributeManager(conn, self.request)
         except Exception as e:
             self.p.perror(str(e))
             raise Exception
@@ -167,6 +169,7 @@ class Executor(object):
         datatable_name = parent_name + const.DATATABLE_SUFFIX
         indextable_name = parent_name + const.INDEXTABLE_SUFFIX
         graph_name = parent_name + const.VERSIONTABLE_SUFFIX
+        attributetable_name = parent_name + const.ATTRIBUTETABLE_SUFFIX
         try:
             # convert file into tmp_table first, then set the table_name to tmp_table
             if file_name:

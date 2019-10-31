@@ -123,6 +123,13 @@ class DatabaseManager():
             # create indexTbl table
             self.cursor.execute("CREATE TABLE %s (vid int primary key, \
                                                   rlist integer[]);" % (const.PUBLIC_SCHEMA + dataset + const.INDEXTABLE_SUFFIX))
+            
+            print "Creating the attribute table ..."
+            # create attribute table
+            self.cursor.execute("CREATE TABLE %s (aid serial primary key, \
+                                                  attname text, \
+                                                  atttype text);" % (const.PUBLIC_SCHEMA + dataset + const.ATTRIBUTETABLE_SUFFIX)) # use atttypid?
+            
             # dump data into this dataset
             file_path = self.config['orpheus_home'] + inputfile
             if header:
@@ -154,6 +161,11 @@ class DatabaseManager():
 
         try:
             self.cursor.execute("DROP table %s;" % (const.PUBLIC_SCHEMA + dataset + const.INDEXTABLE_SUFFIX))
+            self.connect.commit()
+        except:
+            self.refresh_cursor()
+        try:
+            self.cursor.execute("DROP table %s;" % (const.PUBLIC_SCHEMA + dataset + const.ATTRIBUTETABLE_SUFFIX))
             self.connect.commit()
         except:
             self.refresh_cursor()

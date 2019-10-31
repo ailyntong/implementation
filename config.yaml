@@ -17,3 +17,4 @@ meta_info: .meta/tracker
 meta_modifiedIds: .meta/modified
 vGraph_json: .meta/vGraph_json
 
+meta_attribute: .meta/attribute
