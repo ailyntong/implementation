@@ -1,0 +1,18 @@
+# Server information
+host: localhost
+port: 5432
+
+# Orpheus directories
+orpheus:
+  home: /home/ailyn/Documents/git/orpheus_temp # Please specify the Orpheus home directory
+  data: /home/ailyn/Documents/git/orpheus_temp/data # Please specify where you want checkout files to go
+
+#Meta dir
+meta:
+  log_path: .meta/logs/logs.out
+  user_log: .meta/user_log
+  commit_path: .meta/commit_tables
+  tracker: .meta/tracker
+  modifiedIds: .meta/modified
+  vGraph_json: .meta/vGraph_json
+  attribute: .meta/attribute
