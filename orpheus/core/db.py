@@ -3,7 +3,7 @@ import logging
 import click
 import psycopg2
 
-from orpheus_temp.orpheus.core.exception import BadStateError, ConnectionError, SQLSyntaxError
+from orpheus.core.exception import BadStateError, ConnectionError, SQLSyntaxError
 
 class DatabaseConnection:
     def __init__(self, config):
