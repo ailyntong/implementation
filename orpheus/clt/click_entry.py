@@ -69,6 +69,7 @@ def config(ctx, user, password, database):
             UserManager.create_user(user, password)
             from orpheus.core.encryption import EncryptionTool
             newctx['passphrase'] = EncryptionTool.passphrase_hash(password)
+            UserManager.write_current_state(newctx)
             click.echo('Logged into the database [%s] as [%s]' % (database, user))
     except InvalidCredentialError as e:
         click.secho('Invalid credentials for [%s]' % user)
