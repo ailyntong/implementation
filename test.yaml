@@ -1,6 +1,0 @@
-host: localhost
-meta: {attribute: .meta/attribute, commit_path: .meta/commit_tables, log_path: .meta/logs/logs.out,
-  modifiedIds: .meta/modified, tracker: .meta/tracker, user_log: .meta/user_log, vGraph_json: .meta/vGraph_json}
-orpheus: {data: /home/ailyn/Documents/git/orpheus_temp/data, home: /home/ailyn/Documents/git/orpheus_temp}
-port: 5432
-test: test
