@@ -236,7 +236,7 @@ class SQLParser(object):
                     parsed_statement = sqlparse.parse(line)[0]
                     dataset_name, parent, cvd_idx = self.find_cvd_handle(parsed_statement)
 
-                    datatable_attributes, _ = self.relation.get_datatable_attribute(dataset_name + const.DATATABLE_SUFFIX)
+                    datatable_attributes, _ = self.relation.get_datatable_attribute(dataset_name + const.DATA_SUFFIX)
 
                     # get the mapping from each field to alias
                     fields_mapping = self.get_fields_mapping(datatable_attributes)

@@ -35,6 +35,14 @@ class Context():
         except: # unknown error
             raise BadStateError("unknown error while loading config file, abort")
 
+        # create .meta directories and files if necessary
+        for filename in self.config['meta'].values():
+            os.makedirs(os.path.dirname(self.config['orpheus']['home'] + '/' + filename), exist_ok=True)
+            if filename != '.meta/vGraph_json':
+                open(filename, 'a+').close()
+        os.makedirs(self.config['meta']['vGraph_json'], exist_ok=True)
+        os.makedirs('.meta/users', exist_ok=True)
+
 @click.group()
 @click.pass_context
 def cli(ctx):
@@ -76,12 +84,9 @@ def config(ctx, user, password, database):
     except Exception as e:
         click.secho(str(e), fg='red')
 
-    click.echo(ctx.obj)
-
 @cli.command()
 @click.pass_context
 def create_user(ctx):
-    click.echo(ctx.obj)
     # check if this user has permission to create new user
     # create user in UserManager
     if not ctx.obj['user'] or not ctx.obj['database']:
@@ -94,7 +99,7 @@ def create_user(ctx):
     click.echo("Creating user [%s] for database [%s]" % (ctx.obj['user'], ctx.obj['database']))
     try:
         conn = DatabaseConnection(ctx.obj)
-        UserManager.create_user(conn, user, password)
+        UserManager.create_user(user, password, conn)
         click.echo('User created.')
     except Exception as e:
         click.secho(str(e), fg='red')
@@ -126,7 +131,7 @@ def init(ctx, input_file, dataset, table_name, schema):
     # 2.add version control on a existing table in DB
     conn = DatabaseConnection(ctx.obj)
     executor = Executor(ctx.obj, conn)
-    executor.exec_init(input_file, dataset, table_name, schema, conn)
+    executor.exec_init(input_file, dataset, table_name, schema)
 
 
 @cli.command()
@@ -205,7 +210,7 @@ def run(ctx, sql):
 def checkout(ctx, dataset, vlist, to_table, to_file, delimiters, header, ignore):
     conn = DatabaseConnection(ctx.obj)
     executor = Executor(ctx.obj, conn)
-    executor.exec_checkout(dataset, vlist, to_table, to_file, delimiters, header, ignore, conn)
+    executor.exec_checkout(dataset, vlist, to_table, to_file, delimiters, header, ignore)
 
 
 @cli.command()
@@ -216,8 +221,9 @@ def checkout(ctx, dataset, vlist, to_table, to_file, delimiters, header, ignore)
 @click.option('--header', '-h', is_flag=True, help="If set, the first line of checkout file will be the header")
 @click.pass_context
 def commit(ctx, msg, table_name, file_name, delimiters, header):
-    conn = DatabaseManager(ctx.obj)
-    executor = Executor(ctx.obj)
+    conn = DatabaseConnection(ctx.obj)
+    executor = Executor(ctx.obj, conn)
+    file_name = file_name.split('/')[-1]    # temp fix
     executor.exec_commit(msg, table_name, file_name, delimiters, header)
 
 @cli.command()

@@ -11,9 +11,9 @@ class Manager(object):
     def create_table(self, dataset):
         pass
 
-    def drop_table(self, dataset):
+    def drop_dataset(self, dataset):
         try:
-            self.conn.cursor.execute("DROP TABLE %s;" % (const.PUBLIC_SCHEMA + dataset + self.suffix))
+            self.conn.cursor.execute("DROP TABLE IF EXISTS %s;" % (const.PUBLIC_SCHEMA + dataset + self.suffix))
             self.conn.connect.commit()
         except:
             self.conn.refresh_cursor()

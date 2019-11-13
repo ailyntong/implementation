@@ -29,7 +29,7 @@ class UserManager(object):
         return user in [usr for usr in listdir(cls.user_path())] and isfile('/'.join([cls.user_path(), user, 'config']))
 
     @classmethod
-    def create_user(cls, conn, user, password=None):
+    def create_user(cls, user, password=None, conn=None):
         from os import makedirs
         if cls.check_user_exists(user):
             return None
@@ -43,7 +43,8 @@ class UserManager(object):
         with open('/'.join([user_directory, 'config']), 'w+') as f:
             f.write(json.dumps(user_obj))
 
-        conn.create_user(user, password)
+        if conn:
+            conn.create_user(user, password)
         
         return 1
 

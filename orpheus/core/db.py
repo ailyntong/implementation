@@ -3,8 +3,9 @@ import logging
 import click
 import psycopg2
 
-from orpheus.core.exception import BadStateError, ConnectionError, NotImplementedError, SQLSyntaxError
+from orpheus.core.exception import BadStateError, ConnectionError, NotImplementedError, SQLSyntaxError, OperationError, DatasetExistsError
 from orpheus.core.sql_parser import SQLParser
+import orpheus.core.orpheus_const as const
 
 class DatabaseConnection:
     def __init__(self, config):
@@ -38,6 +39,7 @@ class DatabaseConnection:
         return self
 
     def execute_sql(self, sql):
+        # print(sql)
         try:
             self.cursor.execute(sql)
             if SQLParser.is_select(sql): # return records
@@ -48,12 +50,31 @@ class DatabaseConnection:
             else:
                 print(self.cursor.statusmessage)
             self.connect.commit() # commit UPDATE/INSERT messages
-        except psycopg2.ProgrammingError:
+        except psycopg2.ProgrammingError as e:
             raise SQLSyntaxError()
+
+    def refresh_cursor(self):
+        self.connect = psycopg2.connect(self.connect_str)
+        self.cursor = self.connect.cursor()
     
     def init_dataset(self, executor, inputfile, dataset, schema, header=False, attributes=None):
         self.refresh_cursor()
-        print("Creating the dataset [%s] to the database [%s] ...") % (dataset, self.current_db)
+        print("Creating the dataset [%s] to the database [%s] ..." % (dataset, self.current_db))
+
+        # create a schema (in postgres) to store user specific information
+        try:
+            self.cursor.execute("CREATE SCHEMA IF NOT EXISTS %s ;" % self.user)
+            self.cursor.execute("CREATE TABLE IF NOT EXISTS %s (dataset_name text primary key);" % (self.user + '.datasets'))
+        except psycopg2.ProgrammingError:
+            # this is ok since table has been created before
+            self.refresh_cursor()
+
+
+        try:
+            # add current dataset name into user.datasets
+            self.cursor.execute("INSERT INTO %s values('%s');" % (self.user + '.datasets', dataset))
+        except psycopg2.IntegrityError: # happens when inserting duplicate key
+            raise DatasetExistsError(dataset, self.user)
         
         # TODO: user stuff
 
@@ -82,12 +103,13 @@ class DatabaseConnection:
             # dump data
             file_path = self.config['orpheus']['home'] + inputfile 
             if header:
-                self.cursor.execute("COPY %s (%s) FROM '%s' DELIMITER ',' CSV HEADER;" % (const.PUBLIC_SCHEMA + dataset + const.DATATABLE_SUFFIX, ",".join(attributes), file_path))
+                self.cursor.execute("COPY %s (%s) FROM '%s' DELIMITER ',' CSV HEADER;" % (const.PUBLIC_SCHEMA + dataset + const.DATA_SUFFIX, ",".join(attributes), file_path))
             else:
-                self.cursor.execute("COPY %s (%s) FROM '%s' DELIMITER ',' CSV;" % (const.PUBLIC_SCHEMA + dataset + const.DATATABLE_SUFFIX, ",".join(attributes), file_path))
+                self.cursor.execute("COPY %s (%s) FROM '%s' DELIMITER ',' CSV;" % (const.PUBLIC_SCHEMA + dataset + const.DATA_SUFFIX, ",".join(attributes), file_path))
             
             self.connect.commit()
         except Exception as e:
+            print(e)
             raise OperationError()
 
     def drop_dataset(self, executor, dataset):
@@ -140,4 +162,5 @@ class DatabaseConnection:
     #         raise e
 
     def create_user(self, user, password):
-        self.execute_sql("CREATE USER %s SUPERUSER WITH PASSWORD '%s'" % (user, password))
+        self.execute_sql("CREATE USER %s SUPERUSER;" % user)
+        # self.execute_sql("ALTER ROLE %s WITH PASSWORD '%s';" % (user, password))

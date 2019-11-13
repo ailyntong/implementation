@@ -6,7 +6,7 @@ import json
 class VersionGraph():
     def __init__(self, config, request):
         try:
-            self.request
+            self.request = request
             self.vGraph_json = config['meta']['vGraph_json']
             if not self.vGraph_json.endswith('/'):
                 self.vGraph_json += '/'
@@ -20,14 +20,14 @@ class VersionGraph():
             data['children'] = []
         return data
 
-    def init_vGraph_json(self, dataset, vid):
+    def init_vgraph_json(self, dataset, vid):
         fpath = self.vGraph_json + dataset
         data = self.__gen_json_object(vid,True)
         f = open(fpath, 'w')
         f.write(json.dumps(data))
         f.close()
 
-    def delete_vGraph_json(self, dataset):
+    def delete_vgraph_json(self, dataset):
         fpath = self.vGraph_json + dataset
         try:
             os.remove(fpath)
@@ -51,7 +51,7 @@ class VersionGraph():
                     stack.append((child['name'], child['children']))
         return False
 
-    def update_vGraph_json(self, dataset, vid, parents):
+    def update_vgraph_json(self, dataset, vid, parents):
         # Load corresponding JSON file
         try:
             fpath = self.vGraph_json + dataset

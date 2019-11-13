@@ -34,8 +34,12 @@ class RelationManager(Manager):
     def create_table(self, dataset, schema):
         print("Creating the data table using the schema provided ...")
         table = const.PUBLIC_SCHEMA + dataset + self.suffix
-        self.cursor.execute("CREATE TABLE %s (rid SERIAL PRIMARY KEY, \
-                                              %s);" % (table, schema))
+        sql = "CREATE TABLE %s (rid SERIAL PRIMARY KEY, \
+                                              %s);" % (table, ",".join(map(lambda attribute : attribute[0] + " " + attribute[1], schema)))
+        print(sql)
+        self.conn.cursor.execute(sql)
+        # self.conn.cursor.execute("CREATE TABLE %s (rid SERIAL PRIMARY KEY, \
+        #                                       %s);" % (table, ",".join(map(lambda attribute : attribute[0] + " " + attribute[1], schema))))
 
     def get_datatable_schema(self, from_table):
         sql = "SELECT column_name, data_type \
@@ -43,8 +47,8 @@ class RelationManager(Manager):
                WHERE table_name = '%s' AND column_name != 'rid';" % from_table
         self.conn.cursor.execute(sql)
         schema = self.conn.cursor.fetchall()
-        attribute_names = map(lambda x: str(x[0]), schema)
-        attribute_types = map(lambda x: str(x[1]), schema)
+        attribute_names = list(map(lambda x: str(x[0]), schema))
+        attribute_types = list(map(lambda x: str(x[1]), schema))
         return attribute_names, attribute_types
 
     # to_file needs an absolute path
@@ -81,7 +85,7 @@ class RelationManager(Manager):
         self.drop_table_force('tmp_table')
         self._checkout_table(attributes, ridlist, datatable, 'tmp_table', None)
         sql = "COPY %s (%s) TO '%s' DELIMITER '%s' CSV HEADER;" if header else "COPY %s (%s) TO '%s' DELIMITER '%s' CSV;"
-        sql = sql % ('tmp_table', ','.join(attributes), temp_file, delimiters)
+        sql = sql % ('tmp_table', ','.join(attributes), tmp_file, delimiters)
         self.conn.cursor.execute(sql)
 
         return tmp_file
@@ -121,7 +125,7 @@ class RelationManager(Manager):
     def create_parent_view(self, datatable, indextable, parent_vlist, view_name):
         self.conn.cursor.execute(
             "CREATE VIEW %s AS \
-             SELECT * FROM %s INNER JOIN %S ON rid = ANY(rlist) \
+             SELECT * FROM %s INNER JOIN %s ON rid = ANY(rlist) \
              WHERE vid = ANY(ARRAY[%s]);" % (view_name, datatable, indextable, ','.join(parent_vlist)))
 
     def drop_view(self, view_name):
@@ -135,7 +139,7 @@ class RelationManager(Manager):
              FROM %s INNER JOIN %s ON %s;" % (view_name, projection, table_name, view_name, join_clause))
         return self.conn.cursor.fetchall()
 
-    def convert_csv_to_table(self, file_path, table, attributes, delimiter=',', header=False):
+    def convert_csv_to_table(self, file_path, table, attributes, delimiters=',', header=False):
         sql = "COPY %s (%s) FROM '%s' DELIMITER '%s' CSV HEADER;" % (table, ",".join(attributes), file_path, delimiters) if header \
           else "COPY %s (%s) FROM '%s' DELIMITER '%s' CSV;" % (table, ",".join(attributes), file_path, delimiters)
         self.conn.cursor.execute(sql)

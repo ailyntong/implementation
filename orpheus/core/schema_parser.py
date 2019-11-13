@@ -19,7 +19,7 @@ class ReservedFieldError(Exception):
 class Parser(object):
 
 	@staticmethod
-	def get_attribute_from_file(abs_path, delimiter=','):
+	def get_attributes_from_file(abs_path, delimiter=','):
 		# Postgresql supported type
 		PREDEFINED_TYPE = AttributeManager.valid_types
 

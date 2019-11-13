@@ -59,7 +59,7 @@ class Executor(object):
             if table:
                 attribute_names, attribute_types = self.relation_manager.get_datatable_schema(table)
             else:
-                abs_path = self.config['orpheus_home'] + schema if schema[0] != '/' else schema
+                abs_path = self.config['orpheus']['home'] + schema if schema[0] != '/' else schema
                 attribute_names, attribute_types = SimpleSchemaParser.get_attributes_from_file(abs_path)
         except Exception as e:
             import traceback 
@@ -82,7 +82,7 @@ class Executor(object):
             return
         except Exception as e:
             # revert back to the state before create
-            self.conn.drop_dataset(dataset)
+            self.conn.drop_dataset(self, dataset)
             self.p.perror(str(e))
             return
 
@@ -98,7 +98,7 @@ class Executor(object):
         # TODO: add a popup window to confirm
         # E.g. if click.confirm('Are you sure you want to drop %s?' % dataset):
         try:
-            self.conn.drop_dataset(dataset)
+            self.conn.drop_dataset(self, dataset)
             self.p.pmessage("Dataset [%s] has been dropped" % dataset)
         except Exception as e:
             self.p.perror(str(e))
@@ -108,26 +108,26 @@ class Executor(object):
 
     def exec_checkout(self, dataset, vlist, to_table, to_file, delimiters, header, ignore):
         if not to_table and not to_file:
-            self.p.perror(str(exception.BadParametersError("Need a destination, either a table (-t) or a file (-f)")))
+            self.p.perror(str(BadParametersError("Need a destination, either a table (-t) or a file (-f)")))
             return
 
-        abs_path = self.config['orpheus.data'] + '/' + to_file if to_file and to_file[0] != '/' else to_file
+        abs_path = self.config['orpheus']['data'] + '/' + to_file if to_file and to_file[0] != '/' else to_file
         try:
             meta_obj = self.metadata_manager.load_meta()
             datatable = dataset + const.DATA_SUFFIX
             indextable = dataset + const.INDEX_SUFFIX
             self.relation_manager.checkout(vlist, datatable, indextable, to_table=to_table, to_file=abs_path, delimiters=delimiters, header=header, ignore=ignore)
             # update meta info
-            AccessManager.grant_access(to_table, conn.user)
+            AccessManager.grant_access(to_table, self.conn.user)
             self.metadata_manager.update(to_table, abs_path, dataset, vlist, meta_obj)
-            self.metadata_manager.commit(meta_obj)
+            self.metadata_manager.commit_meta(meta_obj)
             if to_table:
                 self.p.pmessage("Table %s has been cloned from version %s" % (to_table, ",".join(vlist)))
             if to_file:
                  self.p.pmessage("File %s has been cloned from version %s" % (to_file, ",".join(vlist)))
         except Exception as e:
-            if to_table and not (RelationOverWriteError or ReservedRelationError):
-                relation.drop_table(to_table)
+            if to_table and not (RelationOverwriteError or ReservedRelationError):
+                self.relation_manager.drop_table(to_table)
             if to_file:
                 pass # TODO: delete the file
             self.p.perror(str(e))
@@ -149,11 +149,11 @@ class Executor(object):
         # Otherwise, in the multitable scenario, we do not know which datatable/version_graph/index_table
         # that we need ot update information.
         try:
-            abs_path = self.config['orpheus']['data'] + '/' + file_name if file_name else self.config['orpheus.home']
+            abs_path = self.config['orpheus']['data'] + '/' + file_name if file_name else self.config['orpheus']['home']
             if table_name:
-                self.metadata_manager.load_parent_id(table_name)
+                parent_vid_lst = self.metadata_manager.load_parent_id(table_name)
             else:
-                self.metadata_manager.load_parent_id(abs_path, mapping='file_map')
+                parent_vid_lst = self.metadata_manager.load_parent_id(abs_path, mapping='file_map')
             self.p.pmessage("Parent dataset is %s" % parent_vid_lst[0])
             self.p.pmessage("Parent versions are %s" % ','.join(parent_vid_lst[1]))
         except Exception as e:
@@ -172,9 +172,9 @@ class Executor(object):
                 # need to know the schema for this file
                 attribute_names, attribute_types = self.relation_manager.get_datatable_schema(datatable_name)
                 # create a tmp table
-                self.relation_manager.create_relation_force('tmp_table', datatable_name, sample_table_attributes=attributes)
+                self.relation_manager.create_relation_force('tmp_table', datatable_name, sample_table_attributes=attribute_names)
                 # push everything from csv to tmp_table
-                self.relation_manager.convert_csv_to_table(abs_path, 'tmp_table', attributes, delimiters=delimiters, header=header)
+                self.relation_manager.convert_csv_to_table(abs_path, 'tmp_table', attribute_names, delimiters=delimiters, header=header)
                 table_name = 'tmp_table'
         except Exception as e:
             self.p.perror(str(e))
@@ -188,8 +188,8 @@ class Executor(object):
                     raise BadStateError("%s and %s have different schemas" % (table_name, parent_name))
                 view_name = "%s_view" % parent_name
                 self.relation_manager.create_parent_view(datatable_name, indextable_name, parent_lst, view_name)
-                existing_rids = [t[0] for t in self.relation.select_intersection_table(table_name, view_name, commit_attribute_names)]
-                sql = self.relation_manager.generate_complement_sql(table_name, view_name, attributes=attributes)
+                existing_rids = [t[0] for t in self.relation_manager.select_intersection(table_name, view_name, commit_attribute_names)]
+                sql = self.relation_manager.generate_complement_sql(table_name, view_name, attributes=commit_attribute_names)
                 
                 new_rids = self.relation_manager.update_datatable(datatable_name, sql)
                 self.relation_manager.drop_view(view_name)
@@ -204,7 +204,7 @@ class Executor(object):
                 # update_version_graph
                 curr_vid = self.version_manager.update_version_graph(graph_name, self.config['user'], len(curr_version_rid), parent_lst, table_create_time, message)
                 # update index table
-                self.version_manager.update_version_graph(graph_name, curr_vid, curr_version_rid)
+                self.index_manager.update_index_table(indextable_name, curr_vid, curr_version_rid)
                 self.p.pmessage("Committing version %s with %s records" % (curr_vid, len(curr_version_rid)))
 
                 if table_name:
@@ -261,9 +261,9 @@ class Executor(object):
             table_lst.append((attr_names, transaction))
             return
         
-        show_helper(dataset + const.VERSTIONTABLE_SUFFIX)
-        show_helper(dataset + const.DATATABLE_SUFFIX)
-        show_helper(dataset + const.INDEXTABLE_SUFFIX)
+        show_helper(dataset + const.VERSTION_SUFFIX)
+        show_helper(dataset + const.DATA_SUFFIX)
+        show_helper(dataset + const.INDEX_SUFFIX)
         return table_lst
         
     def exec_restore(self, table_name):
@@ -301,7 +301,7 @@ class Executor(object):
             private_files = PrivateFiles.objects.values('name')
             for file_name in private_files:
                 messages.info(self.request, "Dropping the private file [%s]" % file_name['name'])
-                fpath = self.config['orpheus.home'] + file_name['name']
+                fpath = self.config['orpheus']['home'] + file_name['name']
                 try:
                     os.remove(fpath)
                 except OSError:

@@ -1,5 +1,5 @@
 # PostgreSQL schema prefix
-PUBLIC_SCHEMA = '.public'
+PUBLIC_SCHEMA = 'public.'
 
 # CVD suffixes
 DATA_SUFFIX = '_data'

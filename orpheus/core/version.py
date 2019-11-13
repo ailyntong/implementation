@@ -10,7 +10,7 @@ class VersionManager(Manager):
     def create_table(self, dataset):
         print("Creating the version table ...")
         table = const.PUBLIC_SCHEMA + dataset + self.suffix
-        self.cursor.execute("CREATE TABLE %s (vid SERIAL PRIMARY KEY, \
+        self.conn.cursor.execute("CREATE TABLE %s (vid SERIAL PRIMARY KEY, \
                                               author TEXT, \
                                               num_records INT, \
                                               parent INTEGER[], \
@@ -23,7 +23,7 @@ class VersionManager(Manager):
         self.p.pmessage("Initializing the version table ...")
         self.conn.refresh_cursor()
         self.conn.cursor.execute(
-            "INSERT INTO %s VALUES (1, '%s', $s, '{-1}', '{}', '%s', '%s', 'init commit');" % \
+            "INSERT INTO %s VALUES (1, '%s', %s, '{-1}', '{}', '%s', '%s', 'init commit');" % \
                 (const.PUBLIC_SCHEMA + dataset + self.suffix, user, str(len(ridlist)), str(datetime.now()), str(datetime.now())))
         self.conn.connect.commit()
 
@@ -38,8 +38,8 @@ class VersionManager(Manager):
 
         # update child column in the parent tuple
         self.conn.cursor.execute(
-            "UPDATE %s SET children = ARRAY_APPEND(children, %s) WHERE vid = ANY(%s;:int[]);" % \
-                (graph, vid, parent_lst_str))
+            "UPDATE %s SET children = ARRAY_APPEND(children, %s) WHERE vid = ANY(%s::int[]);" % \
+                (vgraph, vid, parent_lst_str))
 
         self.conn.connect.commit()
         return vid
@@ -51,18 +51,18 @@ class IndexManager(Manager):
     def create_table(self, dataset):
         print("Creating the index table ...")
         table = const.PUBLIC_SCHEMA + dataset + self.suffix
-        self.cursor.execute("CREATE TABLE %s (vid SERIAL PRIMARY KEY, \
+        self.conn.cursor.execute("CREATE TABLE %s (vid INTEGER PRIMARY KEY, \
                                               rlist INTEGER[]);" % table)
 
     def init_index_table(self, dataset, ridlist):
         self.p.pmessage("Initializing the index table ...")
         self.conn.refresh_cursor()
         self.conn.cursor.execute(
-            "INSERT INTO %s VALUES (1, '{%s}');") % \
-                (const.PUBLIC_SCHEMA + dataset + self.suffix, str(','.join(map(str, ridlist))))
+            "INSERT INTO %s VALUES (1, '{%s}');" % \
+                (const.PUBLIC_SCHEMA + dataset + self.suffix, str(','.join(map(str, ridlist)))))
         self.conn.connect.commit()
 
     def update_index_table(self, indextable, vid, ridlist):
         self.conn.cursor.execute(
-            "INSER INTO %s VALUES (%s, ARRAY%s);" % (indextable, vid, ridlist))
+            "INSERT INTO %s VALUES (%s, ARRAY%s);" % (indextable, vid, ridlist))
         self.conn.connect.commit()
