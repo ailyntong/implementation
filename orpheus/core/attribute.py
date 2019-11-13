@@ -1,5 +1,5 @@
-import orpheus_temp.orpheus.core.orpheus_const as const
-from orpheus_temp.orpheus.core.manager import Manager
+import orpheus.core.orpheus_const as const
+from orpheus.core.manager import Manager
 
 class AttributeManager(Manager):
     suffix = const.ATTRIBUTE_SUFFIX

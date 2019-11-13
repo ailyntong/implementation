@@ -1,9 +1,27 @@
-from helper import Print
-import orpheus_const as const
-import sqlparse
-import click
+from orpheus.core.access import AccessManager
+from orpheus.core.attribute import AttributeManager
+from orpheus.core.db import DatabaseConnection
+from orpheus.core.exception import DatasetExistsError, BadStateError, NotImplementedError, BadParametersError
+from orpheus.core.helper import Print
+from orpheus.core.metadata import MetadataManager
+from orpheus.core.relation import RelationManager, RelationNotExistError, RelationOverwriteError, ReservedRelationError
+from orpheus.core.schema_parser import Parser as SimpleSchemaParser
+from orpheus.core.sql_parser import SQLParser
+from orpheus.core.version import VersionManager, IndexManager
+from orpheus.core.vgraph import VersionGraph
+# from orpheus.core.user_control import UserManager
 
-from exception import *
+import orpheus.core.orpheus_const as const
+
+import click
+import sys
+# import user
+import json
+import pandas as pd
+import os
+import sqlparse
+
+from django.contrib import messages
 
 class Executor(object):
     def __init__(self, config, conn, request=False):
@@ -14,6 +32,8 @@ class Executor(object):
         
         try:
             #TODO: Import these dummy; also include SQLParser
+            self.metadata_manager = MetadataManager
+            self.metadata_manager.config = config
             self.relation_manager = RelationManager(conn)
             self.attribute_manager = AttributeManager(conn)
             self.version_manager = VersionManager(conn, request)
@@ -57,7 +77,7 @@ class Executor(object):
             # init version info
             self.version_manager.init_version_graph(dataset, rid_lst, self.config['user'])
             self.index_manager.init_index_table(dataset, rid_lst)
-        except exception.DatasetExistsError as e:
+        except DatasetExistsError as e:
             self.p.perror(str(e))
             return
         except Exception as e:
@@ -88,7 +108,7 @@ class Executor(object):
 
     def exec_checkout(self, dataset, vlist, to_table, to_file, delimiters, header, ignore):
         if not to_table and not to_file:
-            self.p.perror(str(BadParametersError("Need a destination, either a table (-t) or a file (-f)")))
+            self.p.perror(str(exception.BadParametersError("Need a destination, either a table (-t) or a file (-f)")))
             return
 
         abs_path = self.config['orpheus.data'] + '/' + to_file if to_file and to_file[0] != '/' else to_file

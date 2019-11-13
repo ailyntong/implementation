@@ -1,5 +1,5 @@
 import hashlib, binascii
-from orpheus_temp.orpheus.core.exception import BadParametersError
+from orpheus.core.exception import BadParametersError
 
 class EncryptionTool():
 

@@ -30,17 +30,17 @@ setup(
 		orpheus=orpheus.clt.click_entry:cli
 	'''
 )
-import yaml
-# Setting up orpheus home and data directory
-orpheus_dir = os.path.dirname(os.path.realpath(__file__))
-orpheus_data = os.path.join(orpheus_dir, 'data')
-orpheus_config = os.path.join(orpheus_dir, 'config.yaml')
+# import yaml
+# # Setting up orpheus home and data directory
+# orpheus_dir = os.path.dirname(os.path.realpath(__file__))
+# orpheus_data = os.path.join(orpheus_dir, 'data')
+# orpheus_config = os.path.join(orpheus_dir, 'config.yaml')
 
-try:
-	with open(orpheus_config, 'w') as f:
-		data = yaml.safe_load(f)
-		data['orpheus']['home'] = orpheus_dir
-		data['orpheus']['data'] = orpheus_data
-		yaml.dump(data, f, default_flow_style=False, allow_unicode=True) 
-except IOError as e:
-	print("Failed to load config.yaml")
+# try:
+# 	with open(orpheus_config, 'w') as f:
+# 		data = yaml.safe_load(f)
+# 		data['orpheus']['home'] = orpheus_dir
+# 		data['orpheus']['data'] = orpheus_data
+# 		yaml.dump(data, f, default_flow_style=False, allow_unicode=True) 
+# except IOError as e:
+# 	print("Failed to load config.yaml")

@@ -3,7 +3,8 @@ import logging
 import click
 import psycopg2
 
-from orpheus.core.exception import BadStateError, ConnectionError, SQLSyntaxError
+from orpheus.core.exception import BadStateError, ConnectionError, NotImplementedError, SQLSyntaxError
+from orpheus.core.sql_parser import SQLParser
 
 class DatabaseConnection:
     def __init__(self, config):
@@ -18,7 +19,7 @@ class DatabaseConnection:
             self.current_db = config['database']
             self.user = config['user']
             self.password = config['passphrase']
-            self.connect_str = "host=" + self.config['host'] + " port=" + str(self.config['port']) + " dbname=" + self.currentDB + " user=" + self.user + " password=" + self.password
+            self.connect_str = "host=" + self.config['host'] + " port=" + str(self.config['port']) + " dbname=" + self.current_db + " user=" + self.user + " password=" + self.password
             self.connect_db()
         except KeyError as e:
             raise BadStateError("context missing field %s, abort" % e.args[0])
@@ -32,8 +33,9 @@ class DatabaseConnection:
             self.connect = psycopg2.connect(self.connect_str)
             self.cursor = self.connect.cursor()
         except psycopg2.OperationalError as e:
-            logging.error('%s is not open; connect_str was %s' % (self.currentDB, self.connect_str))
-            raise ConnectionError("Cannot connect to the database [%s] @ [%s]:[%s]. Check connection, username, password and database name." % (self.currentDB, self.config['host'], self.config['port']))
+            logging.error('%s is not open; connect_str was %s' % (self.current_db, self.connect_str))
+            raise ConnectionError("Cannot connect to the database [%s] @ [%s]:[%s]. Check connection, username, password and database name." % (self.current_db, self.config['host'], self.config['port']))
+        return self
 
     def execute_sql(self, sql):
         try:

@@ -1,4 +1,5 @@
-from helper import Print
+from orpheus.core.helper import Print
+import orpheus.core.orpheus_const as const
 
 class Manager(object):
     def __init__(self, conn, config=None, request=None):

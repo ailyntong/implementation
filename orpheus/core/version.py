@@ -1,7 +1,7 @@
 from datetime import datetime
-import orpheus_temp.orpheus.core.orpheus_const as const
-from orpheus_temp.orpheus.core.manager import Manager
-from helper import Print
+import orpheus.core.orpheus_const as const
+from orpheus.core.manager import Manager
+from orpheus.core.helper import Print
 
 class VersionManager(Manager):
     suffix = const.VERSION_SUFFIX

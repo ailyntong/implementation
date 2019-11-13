@@ -5,7 +5,7 @@ import click
 from orpheus.core.db import DatabaseConnection
 from orpheus.core.exception import BadStateError, NotImplementedError, BadParametersError
 from orpheus.core.executor import Executor
-from orpheus.core.orpheus_sqlparse import SQLParser
+from orpheus.core.sql_parser import SQLParser
 from orpheus.core.user_control import UserManager, InvalidCredentialError
 
 class Context():
@@ -33,7 +33,7 @@ class Context():
         except AssertionError as e:
             raise BadStateError("orpheus_home not specified in %s" % config.yaml)
         except: # unknown error
-            raise BadStateError("unknown error while loading config file, aabort")
+            raise BadStateError("unknown error while loading config file, abort")
 
 @click.group()
 @click.pass_context
@@ -66,6 +66,7 @@ def config(ctx, user, password, database):
     try:
         UserManager.create_user(user, password)
         if UserManager.verify_credential(user, password):
+            UserManager.create_user(user, password)
             from orpheus.core.encryption import EncryptionTool
             newctx['passphrase'] = EncryptionTool.passphrase_hash(password)
             click.echo('Logged into the database [%s] as [%s]' % (database, user))
@@ -74,9 +75,12 @@ def config(ctx, user, password, database):
     except Exception as e:
         click.secho(str(e), fg='red')
 
+    click.echo(ctx.obj)
+
 @cli.command()
 @click.pass_context
 def create_user(ctx):
+    click.echo(ctx.obj)
     # check if this user has permission to create new user
     # create user in UserManager
     if not ctx.obj['user'] or not ctx.obj['database']:
@@ -99,7 +103,7 @@ def create_user(ctx):
 @cli.command()
 @click.pass_context
 def whoami(ctx):
-    if not obj['user'] or not ctx.obj['database']:
+    if not ctx.obj['user'] or not ctx.obj['database']:
         click.secho("No session is in use, please call config first", fg='red')
     else:
         click.echo("Logged into the database [%s] as [%s]" % (ctx.obj['database'], ctx.obj['user']))
@@ -231,7 +235,7 @@ def clean(ctx):
     click.echo("meta.modifiedID cleaned")
 
 @cli.command()
-@click.option('--dataset, -d', help='CVD name', required=True)
+@click.option('--dataset', '-d', help='CVD name', required=True)
 @click.pass_context
 def status(ctx, dataset):
     # TODO: show checked out versions and their schemas, etc.

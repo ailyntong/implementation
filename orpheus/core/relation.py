@@ -1,7 +1,7 @@
 import shutil
-import orpheus_temp.orpheus.core.orpheus_const as const
-from orpheus_temp.orpheus.core.manager import Manager
-from orpheus_temp.orpheus.core.exception import NotImplementedError
+import orpheus.core.orpheus_const as const
+from orpheus.core.manager import Manager
+from orpheus.core.exception import NotImplementedError
 
 class RelationNotExistError(Exception):
   def __init__(self, tablename):
