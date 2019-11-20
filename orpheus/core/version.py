@@ -52,17 +52,25 @@ class IndexManager(Manager):
         print("Creating the index table ...")
         table = const.PUBLIC_SCHEMA + dataset + self.suffix
         self.conn.cursor.execute("CREATE TABLE %s (vid INTEGER PRIMARY KEY, \
+                                              alist INTEGER[], \
                                               rlist INTEGER[]);" % table)
 
-    def init_index_table(self, dataset, ridlist):
+    def init_index_table(self, dataset, aidlist, ridlist):
         self.p.pmessage("Initializing the index table ...")
         self.conn.refresh_cursor()
         self.conn.cursor.execute(
-            "INSERT INTO %s VALUES (1, '{%s}');" % \
-                (const.PUBLIC_SCHEMA + dataset + self.suffix, str(','.join(map(str, ridlist)))))
+            "INSERT INTO %s VALUES (1, '{%s}', '{%s}');" % \
+                (const.PUBLIC_SCHEMA + dataset + self.suffix, str(','.join(map(str, aidlist))), str(','.join(map(str, ridlist)))))
         self.conn.connect.commit()
 
-    def update_index_table(self, indextable, vid, ridlist):
+    def update_index_table(self, indextable, vid, aidlist, ridlist):
         self.conn.cursor.execute(
-            "INSERT INTO %s VALUES (%s, ARRAY%s);" % (indextable, vid, ridlist))
+            "INSERT INTO %s VALUES (%s, ARRAY%s, ARRAY%s);" % (indextable, vid, aidlist, ridlist))
         self.conn.connect.commit()
+
+    def get_aids(self, dataset, vlist):
+        indextable = dataset + self.suffix
+        vlist_str = "'{" + ','.join(map(str, vlist)) + "}'"
+        self.conn.cursor.execute("SELECT alist FROM %s WHERE vid = ANY(%s::int[]);" % (indextable, vlist_str))
+        alists = [lst[0] for lst in self.conn.cursor.fetchall()]
+        return list(set().union(*alists))

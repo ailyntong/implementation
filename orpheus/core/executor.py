@@ -69,14 +69,17 @@ class Executor(object):
         # at this point, we have a valid conn obj and relation_manager obj
         try:
             # schema of the dataset, of format (name, type)
-            schema_tuple = zip(attribute_names, attribute_types)
+            schema_tuple = list(zip(attribute_names, attribute_types))
             # create new dataset
             self.conn.init_dataset(self, input_file, dataset, schema_tuple, attributes=attribute_names)
             # get all rids in list
             rid_lst = self.relation_manager.select_all_rids(const.PUBLIC_SCHEMA + dataset + const.DATA_SUFFIX)
+            # init attribute table
+            self.attribute_manager.init_attribute_table(dataset, schema_tuple)
+            aid_lst = list(range(1, self.attribute_manager.get_max_id(dataset + const.ATTRIBUTE_SUFFIX) + 1))
             # init version info
             self.version_manager.init_version_graph(dataset, rid_lst, self.config['user'])
-            self.index_manager.init_index_table(dataset, rid_lst)
+            self.index_manager.init_index_table(dataset, aid_lst, rid_lst)
         except DatasetExistsError as e:
             self.p.perror(str(e))
             return
@@ -91,6 +94,8 @@ class Executor(object):
         except Exception as e:
             self.vgraph.delete_vgraph_json(dataset)
             raise Exception
+
+        # self.metadata_manager.write_head(dataset, '')
 
         self.p.pmessage("Dataset [%s] successfully created" % dataset)
 
@@ -112,15 +117,31 @@ class Executor(object):
             return
 
         abs_path = self.config['orpheus']['data'] + '/' + to_file if to_file and to_file[0] != '/' else to_file
+
+        # only allow one checkout at a time
+        # try:
+        #     curr_head = self.metadata_manager.load_head(dataset)
+        #     if curr_head != set(vlist):
+        #         self.p.pmessage('Changing head from %s to %s' % (str(curr_head), str(vlist)))
+        # except Exception as e:
+        #     self.p.perror(str(e))
+        #     raise Exception
+
         try:
             meta_obj = self.metadata_manager.load_meta()
             datatable = dataset + const.DATA_SUFFIX
             indextable = dataset + const.INDEX_SUFFIX
-            self.relation_manager.checkout(vlist, datatable, indextable, to_table=to_table, to_file=abs_path, delimiters=delimiters, header=header, ignore=ignore)
+            attributetable = dataset + const.ATTRIBUTE_SUFFIX
+
+            alist = self.index_manager.get_aids(dataset, vlist)
+            attnames, atttypes = self.attribute_manager.get_attributes(attributetable, alist)
+            self.relation_manager.checkout(vlist, datatable, indextable, attribute_names=attnames, to_table=to_table, to_file=abs_path, delimiters=delimiters, header=header, ignore=ignore)
+
             # update meta info
             AccessManager.grant_access(to_table, self.conn.user)
             self.metadata_manager.update(to_table, abs_path, dataset, vlist, meta_obj)
             self.metadata_manager.commit_meta(meta_obj)
+            # self.metadata_manager.write_head(dataset, vlist)
             if to_table:
                 self.p.pmessage("Table %s has been cloned from version %s" % (to_table, ",".join(vlist)))
             if to_file:
@@ -133,7 +154,7 @@ class Executor(object):
             self.p.perror(str(e))
             raise Exception
 
-    def exec_commit(self, message, table_name, file_name, delimiters, header):
+    def exec_commit(self, message, dataset, table_name, file_name, delimiters, header, schema):
         # sanity check
         if not table_name and not file_name:
             self.p.perror(str(BadParametersError("Need a source, either a table (-t) or a file (-f)")))
@@ -144,6 +165,12 @@ class Executor(object):
         if table_name and not self.relation_manager.check_table_exists(table_name):
             self.p.perror(str(RelationNotExistError(table_name)))
             raise Exception
+        if file_name and not schema:
+            if not header:
+                self.p.perror(str(BadParametersError("Need a schema file")))
+            self.p.perror(str(BadParametersError("Use of header currently not supported")))
+            return
+
         # load parent information about the table
         # TODO: We need to get the derivation information of the commited table;
         # Otherwise, in the multitable scenario, we do not know which datatable/version_graph/index_table
@@ -166,15 +193,38 @@ class Executor(object):
         graph_name = parent_name + const.VERSION_SUFFIX
         attributetable_name = parent_name + const.ATTRIBUTE_SUFFIX
 
+        # identify new schema and update attribute table, data table schema
+        try:
+            if file_name: # get schema from schema file
+                schema_path = self.config['orpheus']['home'] + schema if schema[0] != '/' else schema
+                new_attribute_names, new_attribute_types = SimpleSchemaParser.get_attributes_from_file(schema_path)
+            else: # get schema from table
+                new_attribute_names, new_attribute_types = self.relation_manager.get_datatable_schema(table_name)
+            new_schema = zip(new_attribute_names, new_attribute_types)
+            # get parent schema
+            parent_alist = self.index_manager.get_aids(parent_name, parent_lst)
+            parent_attribute_names, parent_attribute_types = self.attribute_manager.get_attributes(attributetable_name, parent_alist)
+            parent_schema = zip(parent_attribute_names, parent_attribute_types)
+            # calculate diff with new schema
+            deletions, additions, edits = self.attribute_manager._schema_diff_helper(parent_schema, new_schema)
+            print(deletions, additions, edits)
+            # update attribute table
+            removed_aids, new_aids = self.attribute_manager.update_attribute_table(attributetable_name, deletions, additions, edits)
+            # update data table schema
+            self.relation_manager.update_datatable_schema(datatable_name, additions + edits)
+        except Exception as e:
+            self.p.perror(str(e))
+            raise Exception
+
         try:
             # convert file into tmp_table first, then set the table_name to tmp_table
             if file_name:
-                # need to know the schema for this file
-                attribute_names, attribute_types = self.relation_manager.get_datatable_schema(datatable_name)
+                # # need to know the schema for this file
+                # attribute_names, attribute_types = self.relation_manager.get_datatable_schema(datatable_name)
                 # create a tmp table
-                self.relation_manager.create_relation_force('tmp_table', datatable_name, sample_table_attributes=attribute_names)
+                self.relation_manager.create_relation_force('tmp_table', datatable_name, sample_table_attributes=new_attribute_names)
                 # push everything from csv to tmp_table
-                self.relation_manager.convert_csv_to_table(abs_path, 'tmp_table', attribute_names, delimiters=delimiters, header=header)
+                self.relation_manager.convert_csv_to_table(abs_path, 'tmp_table', new_attribute_names, delimiters=delimiters, header=header)
                 table_name = 'tmp_table'
         except Exception as e:
             self.p.perror(str(e))
@@ -182,16 +232,19 @@ class Executor(object):
         
         if table_name:
             try:
-                commit_attribute_names, commit_attribute_types = self.relation_manager.get_datatable_schema(table_name)
-                # TODO: update attribute table
-                if len(set(zip(attribute_names, attribute_types)) - set(zip(commit_attribute_names, commit_attribute_types))) > 0:
-                    raise BadStateError("%s and %s have different schemas" % (table_name, parent_name))
+                # # update attribute table
+                # alist = self.index_manager.get_aids(parent_name, parent_lst)
+                # commit_attribute_names, commit_attribute_types = self.attribute_manager.get_attributes(attributetable_name, alist)
+                # new_schema, new_alist, new_cols = self.attribute_manager.update_attribute_table(attributetable_name, parent_lst, alist, list(zip(commit_attribute_names, commit_attribute_types)))
+                # if len(set(zip(attribute_names, attribute_types)) - set(zip(commit_attribute_names, commit_attribute_types))) > 0:
+                #     raise BadStateError("%s and %s have different schemas" % (table_name, parent_name))
                 view_name = "%s_view" % parent_name
                 self.relation_manager.create_parent_view(datatable_name, indextable_name, parent_lst, view_name)
-                existing_rids = [t[0] for t in self.relation_manager.select_intersection(table_name, view_name, commit_attribute_names)]
-                sql = self.relation_manager.generate_complement_sql(table_name, view_name, attributes=commit_attribute_names)
-                
-                new_rids = self.relation_manager.update_datatable(datatable_name, sql)
+                # find existing rows that match data in table to be committed
+                existing_rids = [t[0] for t in self.relation_manager.select_intersection(table_name, view_name, new_attribute_names)]
+                sql = self.relation_manager.generate_complement_sql(table_name, view_name, attributes=new_attribute_names)
+                # update data table
+                new_rids = self.relation_manager.update_datatable(datatable_name, new_attribute_names, sql)
                 self.relation_manager.drop_view(view_name)
                 
                 self.p.pmessage("Found %s new records" % len(new_rids))
@@ -204,9 +257,11 @@ class Executor(object):
                 # update_version_graph
                 curr_vid = self.version_manager.update_version_graph(graph_name, self.config['user'], len(curr_version_rid), parent_lst, table_create_time, message)
                 # update index table
-                self.index_manager.update_index_table(indextable_name, curr_vid, curr_version_rid)
+                new_alist = list(set(parent_alist).difference(set(removed_aids)).union(set(new_aids)))
+                self.index_manager.update_index_table(indextable_name, curr_vid, new_alist, curr_version_rid)
                 self.p.pmessage("Committing version %s with %s records" % (curr_vid, len(curr_version_rid)))
 
+                # update metadata
                 if table_name:
                     self.metadata_manager.update_parent_id(table_name, parent_name, curr_vid)
                 else:
@@ -217,6 +272,7 @@ class Executor(object):
                 self.p.perror(str(e))
                 raise Exception
 
+        # cleanup
         if self.relation_manager.check_table_exists('tmp_table'):
             self.relation_manager.drop_table('tmp_table')
         
@@ -258,7 +314,7 @@ class Executor(object):
         def show_helper(table_name, pk="vid"):
             sql = "SELECT * FROM %s ORDER BY %s LIMIT 4;" % (table_name, pk)
             attr_names, transactions = self.conn.execute_sql(sql)
-            table_lst.append((attr_names, transaction))
+            table_lst.append((attr_names, transactions))
             return
         
         show_helper(dataset + const.VERSTION_SUFFIX)

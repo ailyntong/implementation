@@ -1,6 +1,7 @@
 import shutil
 import orpheus.core.orpheus_const as const
 from orpheus.core.manager import Manager
+from orpheus.core.version import IndexManager
 from orpheus.core.exception import NotImplementedError
 
 class RelationNotExistError(Exception):
@@ -36,7 +37,6 @@ class RelationManager(Manager):
         table = const.PUBLIC_SCHEMA + dataset + self.suffix
         sql = "CREATE TABLE %s (rid SERIAL PRIMARY KEY, \
                                               %s);" % (table, ",".join(map(lambda attribute : attribute[0] + " " + attribute[1], schema)))
-        print(sql)
         self.conn.cursor.execute(sql)
         # self.conn.cursor.execute("CREATE TABLE %s (rid SERIAL PRIMARY KEY, \
         #                                       %s);" % (table, ",".join(map(lambda attribute : attribute[0] + " " + attribute[1], schema))))
@@ -52,7 +52,7 @@ class RelationManager(Manager):
         return attribute_names, attribute_types
 
     # to_file needs an absolute path
-    def checkout(self, vlist, datatable, indextable, to_table=None, to_file=None, delimiters=',', header=False, ignore=False):
+    def checkout(self, vlist, datatable, indextable, attribute_names=None, to_table=None, to_file=None, delimiters=',', header=False, ignore=False):
         # sanity check
         if to_table:
             if RelationManager.reserve_table_check(to_table):
@@ -66,7 +66,8 @@ class RelationManager(Manager):
         if not self.check_table_exists(datatable):
             raise RelationNotExistError(datatable)
 
-        attribute_names, attribute_types = self.get_datatable_schema(datatable)
+        if not attribute_names:
+            attribute_names, _ = self.get_datatable_schema(datatable)
         ridlist = self.select_records_from_vlist(vlist, indextable)
 
         if to_table:
@@ -76,8 +77,6 @@ class RelationManager(Manager):
             shutil.copy(tmp_file, to_file)
 
         self.conn.connect.commit()
-        
-
 
     def _checkout_file(self, attributes, ridlist, datatable, to_file, delimiters, header):
         tmp_file = '/tmp/' + to_file.split('/')[-1]
@@ -167,8 +166,18 @@ class RelationManager(Manager):
                 WHERE table_name = '%s');" % table_name)
         return self.conn.cursor.fetchall()[0][0]
 
-    def update_datatable(self, table_name, sql):
-        attribute_names, attribute_types = self.get_datatable_schema(table_name)
+    def update_datatable_schema(self, table_name, new_cols):
+        if not new_cols:
+            return
+        sql = "ALTER TABLE %s" % table_name
+        for attname, atttype in new_cols:
+            sql += " ADD COLUMN %s %s" % (attname, atttype)
+        sql += ";"
+        self.conn.cursor.execute(sql)
+        self.conn.connect.commit()
+
+    def update_datatable(self, table_name, attribute_names, sql):
+        # attribute_names, attribute_types = self.get_datatable_schema(table_name)
         self.conn.cursor.execute("INSERT INTO %s (%s) %s RETURNING rid;" % (table_name, ','.join(attribute_names), sql))
         new_rids = list(map(lambda t: t[0], self.conn.cursor.fetchall()))
         self.conn.connect.commit()

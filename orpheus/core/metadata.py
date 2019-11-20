@@ -115,3 +115,23 @@ class MetadataManager(Manager):
             return create_time
         except KeyError:
             return None
+
+    @staticmethod
+    def load_head(dataset):
+        try:
+            with open(MetadataManager.config['meta']['head'] + '/' + dataset, 'r') as f:
+                vlist = f.readline()
+            if not vlist:
+                return set()
+            else:
+                set([int(v) for v in vlist.split(',')])
+        except KeyError as e:
+            raise BadStateError("Metadata information missing field %s, abort" % e.args[0])
+
+    @staticmethod
+    def write_head(dataset, vlist):
+        try:
+            with open(MetadataManager.config['meta']['head'] + '/' + dataset, 'w') as f:
+                f.write(','.join(vlist))
+        except KeyError as e:
+            raise BadStateError("Metadata information missing field %s, abort" % e.args[0])

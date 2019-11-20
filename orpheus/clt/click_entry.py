@@ -38,7 +38,7 @@ class Context():
         # create .meta directories and files if necessary
         for filename in self.config['meta'].values():
             os.makedirs(os.path.dirname(self.config['orpheus']['home'] + '/' + filename), exist_ok=True)
-            if filename != '.meta/vGraph_json':
+            if filename != '.meta/vGraph_json' and filename != '.meta/head':
                 open(filename, 'a+').close()
         os.makedirs(self.config['meta']['vGraph_json'], exist_ok=True)
         os.makedirs('.meta/users', exist_ok=True)
@@ -215,16 +215,18 @@ def checkout(ctx, dataset, vlist, to_table, to_file, delimiters, header, ignore)
 
 @cli.command()
 @click.option('--msg','-m', help='Commit message', required=True)
+@click.option('--dataset', '-d', help='The dataset to commit to', required=True)
 @click.option('--table_name','-t', help='The table to be committed') # changed to optional later
 @click.option('--file_name', '-f', help='The file to be committed', type=click.Path(exists=True))
-@click.option('--delimiters', '-d', default=',', help='Specify the delimiters used for checkout file')
+@click.option('--delimiters', '-l', default=',', help='Specify the delimiters used for checkout file')
 @click.option('--header', '-h', is_flag=True, help="If set, the first line of checkout file will be the header")
+@click.option('--schema', '-s', help='New schema to use')
 @click.pass_context
-def commit(ctx, msg, table_name, file_name, delimiters, header):
+def commit(ctx, msg, dataset, table_name, file_name, delimiters, header, schema):
     conn = DatabaseConnection(ctx.obj)
     executor = Executor(ctx.obj, conn)
     file_name = file_name.split('/')[-1]    # temp fix
-    executor.exec_commit(msg, table_name, file_name, delimiters, header)
+    executor.exec_commit(msg, dataset, table_name, file_name, delimiters, header, schema)
 
 @cli.command()
 @click.pass_context
