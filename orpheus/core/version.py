@@ -48,9 +48,12 @@ class IndexManager(Manager):
     suffix = const.INDEX_SUFFIX
     pkey = 'vid'
 
-    def create_table(self, dataset):
+    def create_table(self, dataset, schema=None):
         print("Creating the index table ...")
         table = const.PUBLIC_SCHEMA + dataset + self.suffix
+        sql = ("CREATE TABLE %s (vid INTEGER PRIMARY KEY, \
+                                              alist INTEGER[], \
+                                              rlist INTEGER[]);" % table)
         self.conn.cursor.execute("CREATE TABLE %s (vid INTEGER PRIMARY KEY, \
                                               alist INTEGER[], \
                                               rlist INTEGER[]);" % table)

@@ -94,8 +94,9 @@ class DatabaseConnection:
 
             # create cvd into public schema 
             # TODO: change to private schema later
-
-            executor.relation_manager.create_table(dataset, schema)
+            # print(schema)
+            data_types = [x[1] for x in schema]
+            executor.relation_manager.create_table(dataset, list(zip(attributes, data_types)))
             executor.version_manager.create_table(dataset)
             executor.index_manager.create_table(dataset)
             executor.attribute_manager.create_table(dataset)
@@ -103,6 +104,7 @@ class DatabaseConnection:
             # dump data
             file_path = self.config['orpheus']['home'] + inputfile 
             if header:
+                #TODO Change attribute names in the call to join. 
                 self.cursor.execute("COPY %s (%s) FROM '%s' DELIMITER ',' CSV HEADER;" % (const.PUBLIC_SCHEMA + dataset + const.DATA_SUFFIX, ",".join(attributes), file_path))
             else:
                 self.cursor.execute("COPY %s (%s) FROM '%s' DELIMITER ',' CSV;" % (const.PUBLIC_SCHEMA + dataset + const.DATA_SUFFIX, ",".join(attributes), file_path))

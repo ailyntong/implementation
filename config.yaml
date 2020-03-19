@@ -4,8 +4,8 @@ port: 5432
 
 # Orpheus directories
 orpheus:
-  home:  # Please specify the Orpheus home directory
-  data:  # Please specify where you want checkout files to go
+  home:  /home/vincentt/Documents/research/orpheus # Please specify the Orpheus home directory
+  data:  /home/vincentt/Documents/research/orpheus/data # Please specify where you want checkout files to go
 
 #Meta dir
 meta:

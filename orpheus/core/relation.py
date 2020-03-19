@@ -35,8 +35,10 @@ class RelationManager(Manager):
     def create_table(self, dataset, schema):
         print("Creating the data table using the schema provided ...")
         table = const.PUBLIC_SCHEMA + dataset + self.suffix
+        #TODO Change the sql here in the lambda to map name to the new attribute table names
         sql = "CREATE TABLE %s (rid SERIAL PRIMARY KEY, \
                                               %s);" % (table, ",".join(map(lambda attribute : attribute[0] + " " + attribute[1], schema)))
+        print("SQL: " + sql)
         self.conn.cursor.execute(sql)
         # self.conn.cursor.execute("CREATE TABLE %s (rid SERIAL PRIMARY KEY, \
         #                                       %s);" % (table, ",".join(map(lambda attribute : attribute[0] + " " + attribute[1], schema))))
@@ -52,7 +54,7 @@ class RelationManager(Manager):
         return attribute_names, attribute_types
 
     # to_file needs an absolute path
-    def checkout(self, vlist, datatable, indextable, attribute_names=None, to_table=None, to_file=None, delimiters=',', header=False, ignore=False):
+    def checkout(self, vlist, datatable, indextable, attribute_names=None, aids=None, to_table=None, to_file=None, delimiters=',', header=False, ignore=False):
         # sanity check
         if to_table:
             if RelationManager.reserve_table_check(to_table):
@@ -71,9 +73,9 @@ class RelationManager(Manager):
         ridlist = self.select_records_from_vlist(vlist, indextable)
 
         if to_table:
-            self._checkout_table(attribute_names, ridlist, datatable, to_table, ignore)
+            self._checkout_table(aids, ridlist, datatable, to_table, ignore)
         if to_file:
-            tmp_file = self._checkout_file(attribute_names, ridlist, datatable, to_file, delimiters, header)
+            tmp_file = self._checkout_file(aids, ridlist, datatable, to_file, delimiters, header)
             shutil.copy(tmp_file, to_file)
 
         self.conn.connect.commit()
@@ -148,14 +150,14 @@ class RelationManager(Manager):
         raise NotImplementedError("create_relation not implemented")
 
     # will drop existing table to create the new table
-    def create_relation_force(self, table_name, sample_table, sample_table_attributes=None):
+    def create_relation_force(self, table_name, sample_table, sample_table_attributes=None, sample_table_aid=None):
         if self.check_table_exists(table_name):
             self.drop_table(table_name)
         if not sample_table_attributes:
             sample_table_attributes, _ = self.get_datatable_schema(sample_table)
 
         # an easier approach to create empty table
-        self.conn.cursor.execute("CREATE TABLE %s AS SELECT %s FROM %s WHERE 1=2;" % (table_name, ','.join(sample_table_attributes), sample_table))
+        self.conn.cursor.execute("CREATE TABLE %s AS SELECT %s FROM %s WHERE 1=2;" % (table_name, ','.join(sample_table_aid), sample_table))
         self.conn.connect.commit()
 
     def check_table_exists(self, table_name):
@@ -166,10 +168,11 @@ class RelationManager(Manager):
                 WHERE table_name = '%s');" % table_name)
         return self.conn.cursor.fetchall()[0][0]
 
-    def update_datatable_schema(self, table_name, new_cols):
+    def update_datatable_schema(self, table_name, new_cols, new_aids):
         if not new_cols:
             return
         sql = "ALTER TABLE %s" % table_name
+        new_cols = list(zip(new_aids, [c[1] for c in new_cols]))
         for attname, atttype in new_cols:
             sql += " ADD COLUMN %s %s" % (attname, atttype)
         sql += ";"

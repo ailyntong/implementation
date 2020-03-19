@@ -50,7 +50,8 @@ class Executor(object):
         conn = DatabaseConnection(config)
         executor = Executor(config, conn)
         executor.__getattribute__(func_name)(args)
-
+    #TODO Try to change mentions of attributes into the new attributes name instead. Focus mainly on init, checkout, commit
+    #TODO If that fails, check db.py for changes
     def exec_init(self, input_file, dataset, table, schema):
         try:
             if (not table and not schema) or (table and schema):
@@ -71,7 +72,9 @@ class Executor(object):
             # schema of the dataset, of format (name, type)
             schema_tuple = list(zip(attribute_names, attribute_types))
             # create new dataset
-            self.conn.init_dataset(self, input_file, dataset, schema_tuple, attributes=attribute_names)
+            # create new attribute names
+            mod_names = ['a' + str(i) for i in range(1, len(schema_tuple) + 1)]
+            self.conn.init_dataset(self, input_file, dataset, schema_tuple, attributes=mod_names)
             # get all rids in list
             rid_lst = self.relation_manager.select_all_rids(const.PUBLIC_SCHEMA + dataset + const.DATA_SUFFIX)
             # init attribute table
@@ -134,8 +137,10 @@ class Executor(object):
             attributetable = dataset + const.ATTRIBUTE_SUFFIX
 
             alist = self.index_manager.get_aids(dataset, vlist)
+            print(alist)
             attnames, atttypes = self.attribute_manager.get_attributes(attributetable, alist)
-            self.relation_manager.checkout(vlist, datatable, indextable, attribute_names=attnames, to_table=to_table, to_file=abs_path, delimiters=delimiters, header=header, ignore=ignore)
+            alist = ['a' + str(i) for i in alist]
+            self.relation_manager.checkout(vlist, datatable, indextable, attribute_names=attnames, aids=alist, to_table=to_table, to_file=abs_path, delimiters=delimiters, header=header, ignore=ignore)
 
             # update meta info
             AccessManager.grant_access(to_table, self.conn.user)
@@ -207,11 +212,13 @@ class Executor(object):
             parent_schema = zip(parent_attribute_names, parent_attribute_types)
             # calculate diff with new schema
             deletions, additions, edits = self.attribute_manager._schema_diff_helper(parent_schema, new_schema)
-            print(deletions, additions, edits)
+            print(additions)
             # update attribute table
             removed_aids, new_aids = self.attribute_manager.update_attribute_table(attributetable_name, deletions, additions, edits)
+            print(removed_aids, new_aids)
+            new_caids = ['a' + str(i) for i in new_aids]
             # update data table schema
-            self.relation_manager.update_datatable_schema(datatable_name, additions + edits)
+            self.relation_manager.update_datatable_schema(datatable_name, additions + edits, new_caids)
         except Exception as e:
             self.p.perror(str(e))
             raise Exception
@@ -222,9 +229,10 @@ class Executor(object):
                 # # need to know the schema for this file
                 # attribute_names, attribute_types = self.relation_manager.get_datatable_schema(datatable_name)
                 # create a tmp table
-                self.relation_manager.create_relation_force('tmp_table', datatable_name, sample_table_attributes=new_attribute_names)
+                alist = ['a' + str(i) for i in parent_alist if i not in removed_aids] + ['a' + str(i) for i in new_aids]
+                self.relation_manager.create_relation_force('tmp_table', datatable_name, sample_table_attributes=new_attribute_names, sample_table_aid=alist)
                 # push everything from csv to tmp_table
-                self.relation_manager.convert_csv_to_table(abs_path, 'tmp_table', new_attribute_names, delimiters=delimiters, header=header)
+                self.relation_manager.convert_csv_to_table(abs_path, 'tmp_table', alist, delimiters=delimiters, header=header)
                 table_name = 'tmp_table'
         except Exception as e:
             self.p.perror(str(e))
@@ -241,10 +249,10 @@ class Executor(object):
                 view_name = "%s_view" % parent_name
                 self.relation_manager.create_parent_view(datatable_name, indextable_name, parent_lst, view_name)
                 # find existing rows that match data in table to be committed
-                existing_rids = [t[0] for t in self.relation_manager.select_intersection(table_name, view_name, new_attribute_names)]
-                sql = self.relation_manager.generate_complement_sql(table_name, view_name, attributes=new_attribute_names)
+                existing_rids = [t[0] for t in self.relation_manager.select_intersection(table_name, view_name, alist)]
+                sql = self.relation_manager.generate_complement_sql(table_name, view_name, attributes=alist)
                 # update data table
-                new_rids = self.relation_manager.update_datatable(datatable_name, new_attribute_names, sql)
+                new_rids = self.relation_manager.update_datatable(datatable_name, alist, sql)
                 self.relation_manager.drop_view(view_name)
                 
                 self.p.pmessage("Found %s new records" % len(new_rids))
